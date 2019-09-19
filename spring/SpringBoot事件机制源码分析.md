@@ -69,7 +69,7 @@ public void starting() {
 之后在run方法中的prepareEnvironment方法也会进行一次事件发布,通过listeners.environmentPrepared(environment)进行发布ApplicationEnvironmentPreparedEvent事件在prepareContext方法会调用listeners.contextLoaded(context)方法进行发布ApplicationPreparedEvent事件。过程与上述类似，故不赘述，有关SpringBoot注册监听器和发布事件的细节将在下文提到。
 
 #### bean中的监听器注册过程
-在AbstractApplicationContext的refresh方法中有一个方法叫registerListeners，它的作用是在所有注册Bean中查找Listener Bean,并注册到消息广播器中。
+在AbstractApplicationContext的refresh方法中有一个方法叫**registerListeners**，它的作用是在所有注册Bean中查找Listener Bean,并注册到消息广播器中。
 
 ```
 protected void registerListeners() {
@@ -118,7 +118,7 @@ protected void registerListeners() {
 ```
 
 ##### 广播事件
-发布事件是通过SimpleApplicationEventMulticaster类中的multicastEvent方法，该方法会调用父类AbstractApplicationEventMulticaster的getApplicationListeners方法，用来获取符合该Event对应的监听器。
+发布事件是通过**SimpleApplicationEventMulticaster**类中的multicastEvent方法，该方法会调用父类**AbstractApplicationEventMulticaster**的getApplicationListeners方法，用来获取符合该Event对应的监听器。
 ```
 public void multicastEvent(final ApplicationEvent event, @Nullable ResolvableType eventType) {
 		ResolvableType type = (eventType != null ? eventType : resolveDefaultEventType(event));
@@ -134,7 +134,7 @@ public void multicastEvent(final ApplicationEvent event, @Nullable ResolvableTyp
 	}
 ```
 
-下述代码为AbstractApplicationEventMulticaster类的getApplicationListeners方法：
+下述代码为**AbstractApplicationEventMulticaster**类的**getApplicationListeners**方法，首先会从缓存retrieverCache中进行读取，它是一个concurrentHashMap，如果本地缓存未命中，则遍历所有的Listener然后判断对应的Event是否符合该Listener，如果符合则放入集合中然后返回，最后进行唤醒。
 ```
 protected Collection<ApplicationListener<?>> getApplicationListeners(
 			ApplicationEvent event, ResolvableType eventType) {
@@ -171,29 +171,12 @@ protected Collection<ApplicationListener<?>> getApplicationListeners(
 		}
 	}
 ```
-首先会从retrieverCache中读取，它是一个concurrentHashMap。
-
-获取完符合该Event的Listener之后，然后进行唤醒，主要是通过doInvokeListener方法
+唤醒的过程主要是通过**doInvokeListener**方法，他会调用所有的监听器的**onApplicationEvent**方法进行唤醒对应的监听器。
 
 ```
 private void doInvokeListener(ApplicationListener listener, ApplicationEvent event) {
 		try {
 			listener.onApplicationEvent(event);
 		}
-		catch (ClassCastException ex) {
-			String msg = ex.getMessage();
-			if (msg == null || matchesClassCastMessage(msg, event.getClass())) {
-				// Possibly a lambda-defined listener which we could not resolve the generic event type for
-				// -> let's suppress the exception and just log a debug message.
-				Log logger = LogFactory.getLog(getClass());
-				if (logger.isDebugEnabled()) {
-					logger.debug("Non-matching event type for listener: " + listener, ex);
-				}
-			}
-			else {
-				throw ex;
-			}
-		}
-	}
+		......
 ```
-
